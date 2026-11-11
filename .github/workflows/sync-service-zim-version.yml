@@ -1,0 +1,48 @@
+name: Sync service-zim version to dev
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  sync-version:
+    runs-on: ubuntu-26.04
+    steps:
+      - name: Check out this repository
+        uses: actions/checkout@v7.0.1
+
+      - name: Get Octo STS token
+        id: octo-sts
+        uses: octo-sts/action@f603d3be9d8dd9871a265776e625a27b00effe05 # v1.1.1
+        with:
+          scope: thms-rmb/test-ci-signed-commits
+          identity: update-service-zim
+
+      - name: Check out test-ci-signed-commits
+        uses: actions/checkout@v7.0.1
+        with:
+          repository: thms-rmb/test-ci-signed-commits
+          ref: main
+          path: target
+          token: ${{ steps.octo-sts.outputs.token }}
+          persist-credentials: false
+
+      - name: Copy caller version to dev
+        run: cp service-zim-version target/dev/service-zim-version
+
+      - name: Stage dev version
+        run: git -C target add dev/service-zim-version
+
+      - name: Commit staged changes using REST
+        uses: thms-rmb/test-ci-signed-commits/.github/actions/commit-staged-using-rest@main
+        with:
+          token: ${{ steps.octo-sts.outputs.token }}
+          repository: thms-rmb/test-ci-signed-commits
+          ref: refs/heads/main
+          working-directory: target
+          message: "chore: sync service-zim version from caller repo"
